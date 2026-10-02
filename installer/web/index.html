@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nelya setup</title>
+<link rel="stylesheet" href="setup.css">
+</head>
+<body>
+<div class="setup" data-drag>
+  <canvas class="stars"></canvas>
+  <div class="bar top"></div>
+  <div class="bar bottom"></div>
+  <div class="chrome">
+    <span class="label">nelya setup</span>
+    <span class="grow"></span>
+    <button class="win" data-act="minimize" aria-label="minimize"><svg viewBox="0 0 12 12"><path d="M2.5 6h7"/></svg></button>
+    <button class="win close" data-act="close" aria-label="close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+  </div>
+  <div class="moon-side"><pre class="moon" aria-hidden="true"></pre></div>
+  <div class="panel">
+    <section class="step" data-step="install">
+      <h1>nelya</h1>
+      <p class="sub" id="install-sub"></p>
+      <div class="field">
+        <span class="field-label">install to</span>
+        <div class="path"><span class="mono" id="dir"></span><button class="link" id="browse">change</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="opt-desktop" checked><i></i><span>desktop shortcut</span></label>
+      <label class="check"><input type="checkbox" id="opt-start" checked><i></i><span>start menu entry</span></label>
+      <label class="check"><input type="checkbox" id="opt-launch" checked><i></i><span>open nelya when it's done</span></label>
+      <div class="actions">
+        <button class="btn primary" id="go-install"></button>
+        <button class="btn ghost" data-act="close">cancel</button>
+      </div>
+    </section>
+    <section class="step" data-step="uninstall">
+      <h1>uninstall</h1>
+      <p class="sub" id="uninstall-sub"></p>
+      <p class="where" id="uninstall-where"></p>
+      <label class="check danger"><input type="checkbox" id="opt-wipe"><i></i><span>also delete instances, worlds and settings<small>everything in %appdata%\nelya goes with it</small></span></label>
+      <div class="actions">
+        <button class="btn danger" id="go-uninstall">uninstall</button>
+        <button class="btn ghost" data-act="close">keep it</button>
+      </div>
+    </section>
+    <section class="step" data-step="work">
+      <h1 id="work-title"></h1>
+      <p class="sub" id="work-sub"></p>
+      <div class="track"><div class="fill"></div></div>
+      <div class="status"><span><span class="text"></span><span class="caret"></span></span><span class="pct2"><span class="pct">0</span>%</span></div>
+      <div class="actions" id="work-actions"></div>
+    </section>
+  </div>
+  <div class="corner left" id="corner"></div>
+  <div class="corner right"><img src="logo.png" alt=""></div>
+</div>
+<script type="module" src="setup.js"></script>
+</body>
+</html>

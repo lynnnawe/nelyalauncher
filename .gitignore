@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+installer/bin/
+installer/obj/
+installer/out/
+.vs/
+.vscode/
+*.user
+*.suo
+*.tmp

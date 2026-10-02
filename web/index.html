@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nelya</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app booting" id="app">
+  <canvas class="sky"></canvas>
+
+  <div class="edges">
+    <i data-edge="t"></i><i data-edge="b"></i><i data-edge="l"></i><i data-edge="r"></i>
+    <i data-edge="tl"></i><i data-edge="tr"></i><i data-edge="bl"></i><i data-edge="br"></i>
+  </div>
+
+  <header class="titlebar" data-drag data-maxonclick>
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">nelya</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-go="home" class="on">home</button>
+      <button data-go="instances">instances</button>
+      <button data-go="mods">mods</button>
+      <button data-go="skins">skins</button>
+      <button data-go="sync" class="tab-sync">sync</button>
+      <button data-go="console">console</button>
+      <span class="tab-ink"></span>
+    </nav>
+    <img class="title-logo" src="img/logo.png" alt="">
+    <div class="titlebar-right">
+      <button class="running-chip" id="running-chip" hidden><span class="pulse"></span><span class="rc-name"></span><span class="rc-time"></span></button>
+      <button class="tb-btn dl-btn" id="dl-btn" data-tip="downloads" hidden></button>
+      <button class="tb-btn" id="bell-btn" data-tip="notifications"><span class="dot"></span></button>
+      <button class="tb-btn" id="gear-btn" data-tip="settings"></button>
+      <div class="winctl">
+        <button data-window="minimize" class="wc-min" aria-label="minimize"></button>
+        <button data-window="maximize" class="wc-max" aria-label="maximize"></button>
+        <button data-window="close" class="wc-close" aria-label="close"></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="pages" id="pages">
+    <section class="page home" data-page="home"></section>
+    <section class="page instances" data-page="instances"></section>
+    <section class="page mods" data-page="mods"></section>
+    <section class="page console" data-page="console"></section>
+    <section class="page skins" data-page="skins"></section>
+    <section class="page settings" data-page="settings"></section>
+    <section class="page sync" data-page="sync"></section>
+  </main>
+
+  <div class="launch" id="launch"></div>
+  <div class="login" id="login"></div>
+  <div class="layer" id="layer"></div>
+  <div class="toasts" id="toasts"></div>
+  <div class="tip" id="tip"></div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
