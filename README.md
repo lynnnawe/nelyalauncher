@@ -40,7 +40,3 @@ that gives you `dist/Nelya.exe`. to build both the app and the installer in one 
 | `release.ps1` | bumps the version, builds everything and publishes a github release |
 
 everything nelya saves goes in `%appdata%\nelya`.
-
-## license
-
-mit, see [LICENSE](LICENSE).
