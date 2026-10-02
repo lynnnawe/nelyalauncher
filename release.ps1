@@ -42,8 +42,16 @@ $gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
 if (-not $gh -and (Test-Path "$env:ProgramFiles\GitHub CLI\gh.exe")) { $gh = "$env:ProgramFiles\GitHub CLI\gh.exe" }
 if (-not $gh) { throw "install the github cli (winget install GitHub.cli) and run gh auth login" }
 
+if (Test-Path "$root\.git") {
+    git -C $root add -A
+    git -C $root diff --cached --quiet
+    if ($LASTEXITCODE -ne 0) { git -C $root commit -q -m "nelya $Version" }
+    git -C $root push -q origin main
+    if ($LASTEXITCODE -ne 0) { throw "could not push the source to github" }
+}
+
 $text = $(if ($Notes) { $Notes } else { "nelya $Version" })
 Write-Host "publishing v$Version to $repo"
-& $gh release create "v$Version" "$root\dist\Nelya.exe" "$root\dist\Nelya-Setup.exe" --repo $repo --title "nelya $Version" --notes $text
+& $gh release create "v$Version" "$root\dist\Nelya.exe" "$root\dist\Nelya-Setup.exe" --repo $repo --title "nelya $Version" --notes $text --target main
 if ($LASTEXITCODE -ne 0) { throw "github did not accept the release" }
 Write-Host "released https://github.com/$repo/releases/tag/v$Version"
