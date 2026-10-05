@@ -46,6 +46,8 @@ if (Test-Path "$root\.git") {
     git -C $root add -A
     git -C $root diff --cached --quiet
     if ($LASTEXITCODE -ne 0) { git -C $root commit -q -m "nelya $Version" }
+    git -C $root pull -q --rebase origin main
+    if ($LASTEXITCODE -ne 0) { throw "github has changes that clash with yours, sort them out and run this again" }
     git -C $root push -q origin main
     if ($LASTEXITCODE -ne 0) { throw "could not push the source to github" }
 }
