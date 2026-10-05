@@ -349,7 +349,7 @@ export function mountHome(root, app) {
   const altSub = (inst) => {
     if (!app.launcher || !app.launcher.altLabel) return 'another copy of this instance';
     const a = app.launcher.altLabel(inst);
-    return a.name ? (a.same ? `as ${a.name} again` : `as ${a.name}`) : 'another copy of this instance';
+    return a.name ? `as ${a.name}` : 'another copy of this instance';
   };
 
   playMore.addEventListener('click', () => {

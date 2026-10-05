@@ -145,16 +145,8 @@ export function createLauncher(el, hooks = {}) {
     else if (el.classList.contains('open')) render();
   }
 
-  function pickAlt(target) {
-    const busy = new Set([...sessions.values()].filter((s) => s.inst.id === target.id).map((s) => s.account));
-    const free = accounts.filter((a) => !busy.has(a.id));
-    return (free.find((a) => a.id !== state.account) || free[0] || accounts.find((a) => a.id === state.account) || accounts[0] || {}).id;
-  }
-
-  function altLabel(target) {
-    const id = pickAlt(target);
-    const busy = [...sessions.values()].some((s) => s.inst.id === target.id && s.account === id);
-    return { name: accountName(id), same: busy || id === state.account };
+  function altLabel() {
+    return { name: accountName(state.account) };
   }
 
   function launch(target, opts = {}) {
@@ -170,8 +162,7 @@ export function createLauncher(el, hooks = {}) {
       return;
     }
     [...sessions.values()].filter((s) => s.inst.id === target.id && s.phase === 'failed').forEach((s) => sessions.delete(s.key));
-    const account = opts.alt ? pickAlt(target) : state.account;
-    if (opts.alt && existing.some((s) => s.account === account)) toast('launching with the same account', 'add another account to play an alt, servers kick duplicate logins', 'warn', 5200);
+    const account = state.account;
     const key = target.id + ':' + Date.now().toString(36) + (++seq);
     const s = { key, inst: target, account, alt: !!opts.alt, phase: 'loading', status: 'starting...', progress: 0, progressLabel: '', lines: [], started: 0 };
     sessions.set(key, s);
