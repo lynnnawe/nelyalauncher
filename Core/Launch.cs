@@ -9,6 +9,7 @@ namespace Nelya.Core;
 sealed class Session
 {
     public required string Id;
+    public required string Key;
     public Process? Process;
     public DateTime Started = DateTime.UtcNow;
     public readonly CancellationTokenSource Cts = new();
@@ -21,29 +22,35 @@ static class Launch
 {
     static readonly ConcurrentDictionary<string, Session> Sessions = new();
 
-    public static bool IsRunning(string id) => Sessions.ContainsKey(id);
+    public static bool IsRunning(string id) => Sessions.Values.Any(s => s.Id == id);
 
-    public static void Kill(string id)
+    static bool Others(Session session) => Sessions.Values.Any(s => s != session && s.Id == session.Id);
+
+    public static void Kill(string key)
     {
-        if (!Sessions.TryGetValue(id, out var s)) return;
-        s.Killed = true;
-        s.Cts.Cancel();
-        try
+        var targets = Sessions.TryGetValue(key, out var one) ? new[] { one } : Sessions.Values.Where(s => s.Id == key).ToArray();
+        foreach (var s in targets)
         {
-            if (s.Process is { HasExited: false } p) p.Kill(true);
-        }
-        catch
-        {
+            s.Killed = true;
+            s.Cts.Cancel();
+            try
+            {
+                if (s.Process is { HasExited: false } p) p.Kill(true);
+            }
+            catch
+            {
+            }
         }
     }
 
-    static void State(string id, string state, string step) => Hub.Emit("game.state", new { id, state, step });
+    static void State(Session s, string state, string step) => Hub.Emit("game.state", new { id = s.Id, session = s.Key, state, step });
 
-    public static void Start(string id, JsonObject opts)
+    public static string Start(string id, JsonObject opts)
     {
-        if (Sessions.ContainsKey(id)) throw new InvalidOperationException("that instance is already running");
-        var session = new Session { Id = id };
-        Sessions[id] = session;
+        var key = Js.S(opts["session"]) is { Length: > 0 } wanted ? wanted : id + ":" + Guid.NewGuid().ToString("N")[..8];
+        if (Sessions.ContainsKey(key)) throw new InvalidOperationException("that game is already starting");
+        var session = new Session { Id = id, Key = key };
+        Sessions[key] = session;
         _ = Task.Run(async () =>
         {
             try
@@ -52,12 +59,13 @@ static class Launch
             }
             catch (Exception ex)
             {
-                Sessions.TryRemove(id, out _);
+                Sessions.TryRemove(key, out _);
                 var message = ex is OperationCanceledException ? "launch cancelled" : ex is InvalidOperationException ? ex.Message : "launch failed: " + ex.Message;
                 Hub.Log(message, ex is OperationCanceledException ? "warn" : "error");
-                Hub.Emit("game.exit", new { id, code = -1, failed = !(ex is OperationCanceledException), cancelled = ex is OperationCanceledException, error = message, played = 0 });
+                Hub.Emit("game.exit", new { id, session = key, code = -1, failed = !(ex is OperationCanceledException), cancelled = ex is OperationCanceledException, error = message, played = 0 });
             }
         });
+        return key;
     }
 
     static async Task Run(Session session, JsonObject opts)
@@ -72,11 +80,11 @@ static class Launch
         var accountId = Js.S(opts["account"]) ?? Js.S(Hub.Settings["account"]);
         if (string.IsNullOrEmpty(accountId)) throw new InvalidOperationException("add a microsoft account before playing");
 
-        State(id, "preparing", "resolving " + Js.S(inst["version"]));
+        State(session, "preparing", "resolving " + Js.S(inst["version"]));
         var versionId = await Instances.EnsureVersion(inst, ct);
         var r = await Meta.Resolve(versionId, ct);
 
-        State(id, "downloading", "checking game files");
+        State(session, "downloading", "checking game files");
         var gameJob = await Meta.GameJob(r, name, ct);
         var (assetJob, indexId, index) = await Meta.AssetJob(r, name, ct);
         var javaChoice = Js.S(settings["java"]) ?? "auto";
@@ -86,13 +94,13 @@ static class Launch
         await Task.WhenAll(Downloads.Run(gameJob, Math.Max(8, Hub.Threads), ct), Downloads.Run(assetJob, Math.Max(16, Hub.Threads * 2), ct), javaTask);
         var java = await javaTask;
 
-        State(id, "starting", "preparing natives");
+        State(session, "starting", "preparing natives");
         var natives = Path.Combine(Paths.Instance(id), "natives");
         Meta.ExtractNatives(r, natives);
         var assetsRoot = Meta.AssetsRoot(indexId, index, game);
-        Sync.BeforeLaunch(id);
+        if (!Others(session)) Sync.BeforeLaunch(id);
 
-        State(id, "starting", "signing in");
+        State(session, "starting", "signing in");
         var auth = await Launch_Auth(accountId, ct);
 
         var libs = Meta.Libraries(r).Where(l => l.Classpath && File.Exists(l.Path)).Select(l => l.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -219,7 +227,7 @@ static class Launch
         }
         if (sandboxed)
         {
-            State(id, "starting", "setting up the sandbox");
+            State(session, "starting", "setting up the sandbox");
             var javaHome = Path.GetDirectoryName(Path.GetDirectoryName(java))!;
             var sid = Sandbox.Sid();
             await Task.Run(() => Sandbox.Grant(sid,
@@ -246,7 +254,7 @@ static class Launch
         }
         session.Process = process;
         session.Started = DateTime.UtcNow;
-        Hub.Emit("game.state", new { id, state = "running", step = "running", pid = process.Id });
+        Hub.Emit("game.state", new { id, session = session.Key, state = "running", step = "running", pid = process.Id });
 
         inst = Instances.Need(id);
         inst["lastPlayed"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -262,10 +270,10 @@ static class Launch
         inst["playtime"] = (Js.L(inst["playtime"]) ?? 0) + played;
         inst["lastPlayed"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         Instances.Save(inst);
-        Sessions.TryRemove(id, out _);
+        Sessions.TryRemove(session.Key, out _);
         try
         {
-            Sync.AfterExit(id);
+            if (!IsRunning(id)) Sync.AfterExit(id);
         }
         catch
         {
@@ -276,7 +284,7 @@ static class Launch
         var crash = code != 0 && !session.Killed ? Crash.Detect(game, session.Started, tail) : null;
         Hub.Log($"{name} exited with code {code} after {played}s", code == 0 || session.Killed ? "info" : "error");
         _ = Hook(Js.S(settings["post"]), game, "post-exit", CancellationToken.None);
-        Hub.Emit("game.exit", new { id, code, played, killed = session.Killed, crash });
+        Hub.Emit("game.exit", new { id, session = session.Key, code, played, killed = session.Killed, crash });
     }
 
     static async Task<(string Name, string Uuid, string Token, string Xuid)> Launch_Auth(string accountId, CancellationToken ct)
@@ -296,7 +304,7 @@ static class Launch
         if (s.Pending.IsEmpty) return;
         var lines = new List<string>();
         while (lines.Count < 400 && s.Pending.TryDequeue(out var line)) lines.Add(line);
-        Hub.Emit("game.log", new { id = s.Id, lines });
+        Hub.Emit("game.log", new { id = s.Id, session = s.Key, lines });
     }
 
     static async Task Hook(string? command, string dir, string label, CancellationToken ct)

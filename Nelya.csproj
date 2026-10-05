@@ -10,7 +10,7 @@
     <RootNamespace>Nelya</RootNamespace>
     <ApplicationIcon>assets\nelya.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Product>nelya</Product>
     <Company>nelya</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

@@ -6,7 +6,7 @@ import { Globe } from './globe.js';
 import { createCat } from './cat.js';
 import { instances, accounts } from './data.js';
 import { host } from './host.js';
-import { state, set, on, accents, ordered, isPinned, togglePin } from './state.js';
+import { state, set, on, accents, ordered, isPinned, togglePin, isRunning } from './state.js';
 
 const PER_PAGE = 6;
 const SLOTS = [
@@ -89,8 +89,8 @@ export function mountHome(root, app) {
     playIcon.src = instIcon(inst, 4);
     playName.textContent = inst.name;
     playMeta.textContent = `${inst.version} ${inst.loader}`;
-    playBtn.classList.toggle('running', state.running === inst.id);
-    playBtn.innerHTML = state.running === inst.id ? icon('stop', 14) + '<span>running</span>' : icon('play', 15) + '<span>play</span>';
+    playBtn.classList.toggle('running', isRunning(inst.id));
+    playBtn.innerHTML = isRunning(inst.id) ? icon('stop', 14) + '<span>running</span>' : icon('play', 15) + '<span>play</span>';
   }
 
   function syncAccount() {
@@ -343,15 +343,22 @@ export function mountHome(root, app) {
       app.editInstance(null);
       return;
     }
-    if (state.running === inst.id) app.showLaunch();
+    if (isRunning(inst.id)) app.showLaunch(inst.id);
     else app.launch(inst);
   });
+  const altSub = (inst) => {
+    if (!app.launcher || !app.launcher.altLabel) return 'another copy of this instance';
+    const a = app.launcher.altLabel(inst);
+    return a.name ? (a.same ? `as ${a.name} again` : `as ${a.name}`) : 'another copy of this instance';
+  };
+
   playMore.addEventListener('click', () => {
     const inst = current();
     if (!inst) return;
     const item = (ic, label, sub, fn) => h('button', { class: 'menu-item', onclick: () => { closePop(); fn(); } }, h('span', { html: icon(ic, 14) }), h('span', { text: label }), sub ? h('small', { text: sub }) : null);
     const menu = h('div', { class: 'menu' },
-      item('play', 'play', inst.name, () => app.launch(inst)),
+      item('play', isRunning(inst.id) ? 'show game' : 'play', inst.name, () => app.launch(inst)),
+      item('userplus', 'launch alt', altSub(inst), () => app.launch(inst, { alt: true })),
       h('hr'),
       item('folder', 'open instance folder', null, () => host.call('open', { id: inst.id }).catch(() => {})),
       item('sliders', 'instance settings', null, () => app.instanceSettings(inst)),
@@ -482,7 +489,7 @@ export function mountHome(root, app) {
     syncPlay();
   });
   on('running', syncPlay);
-  on('running', (v) => { if (v) cat.wake(); });
+  on('running', (v) => { if (v && v.length) cat.wake(); });
 
   new ResizeObserver(() => {
     const had = !!geo;

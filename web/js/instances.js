@@ -2,7 +2,7 @@ import { h, reveal, toast, segmented, select, toggle, slider, modal, popover, cl
 import { icon } from './icons.js';
 import { sprite, instIcon, spriteNames, landscape, UNKNOWN } from './sprites.js';
 import { instances, loaders, javas, normalize, fmtBytes, relTime } from './data.js';
-import { state, set, on, emit, ordered, isPinned, togglePin } from './state.js';
+import { state, set, on, emit, ordered, isPinned, togglePin, isRunning } from './state.js';
 import { syncTargets } from './sync.js';
 import { host } from './host.js';
 
@@ -156,7 +156,7 @@ export function mountInstances(root, app) {
         h('div', { class: 'ir-text' }, h('b', { text: inst.name }), h('span', { text: `${inst.version}  ${inst.loader}` })),
         isPinned(inst.id) ? h('span', { class: 'ir-pin', html: icon('tack', 12) }) : null,
         h('span', { class: 'ir-time', text: relTime(inst.lastPlayed) }),
-        state.running === inst.id ? h('span', { class: 'ir-live' }) : null,
+        isRunning(inst.id) ? h('span', { class: 'ir-live' }) : null,
       );
       row.addEventListener('click', () => set('selected', inst.id));
       row.addEventListener('dblclick', () => app.launch(inst));
@@ -186,7 +186,7 @@ export function mountInstances(root, app) {
       return;
     }
     detail.innerHTML = '';
-    const running = state.running === inst.id;
+    const running = isRunning(inst.id);
     const sizeEl = h('b', { text: inst.sizeBytes != null ? fmtBytes(inst.sizeBytes) : '...' });
     const hero = h('div', { class: 'hero rv' },
       h('button', { class: 'hero-art', 'data-tip': 'change icon', onclick: () => changeIcon(inst) }, h('img', { src: instIcon(inst, 8), alt: '' }), h('i'), h('span', { class: 'hero-art-edit', html: icon('edit', 15) })),
@@ -200,7 +200,7 @@ export function mountInstances(root, app) {
         ),
       ),
       h('div', { class: 'hero-actions' },
-        h('button', { class: 'btn primary' + (running ? ' running' : ''), html: running ? icon('stop', 14) + '<span>running</span>' : icon('play', 14) + '<span>play</span>', onclick: () => (running ? app.showLaunch() : app.launch(inst)) }),
+        h('button', { class: 'btn primary' + (running ? ' running' : ''), html: running ? icon('stop', 14) + '<span>running</span>' : icon('play', 14) + '<span>play</span>', onclick: () => (running ? app.showLaunch(inst.id) : app.launch(inst)) }),
         h('button', { class: 'btn icon', html: icon('folder', 16), 'data-tip': 'open folder', onclick: () => openFolder(inst) }),
         moreBtn(inst),
       ),
@@ -385,7 +385,8 @@ export function mountInstances(root, app) {
   function instMenu(inst, opts = {}) {
     const item = (ic, label, fn, cls = '') => h('button', { class: 'menu-item ' + cls, onclick: () => { closePop(); fn(); } }, h('span', { html: icon(ic, 14) }), h('span', { text: label }));
     return h('div', { class: 'menu' },
-      opts.play ? item('play', state.running === inst.id ? 'show game' : 'play', () => (state.running === inst.id ? app.showLaunch() : app.launch(inst))) : null,
+      opts.play ? item('play', isRunning(inst.id) ? 'show game' : 'play', () => (isRunning(inst.id) ? app.showLaunch(inst.id) : app.launch(inst))) : null,
+      opts.play ? item('userplus', 'launch alt', () => app.launch(inst, { alt: true })) : null,
       opts.play ? h('hr') : null,
       item('edit', 'edit instance', () => openCreate(inst)),
       item('image', 'change icon', () => changeIcon(inst)),

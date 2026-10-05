@@ -96,7 +96,7 @@ const login = createLogin(document.getElementById('login'));
 const app = {
   go,
   launch: (inst, opts) => launcher.launch(inst, opts),
-  showLaunch: () => launcher.show(),
+  showLaunch: (id) => launcher.show(id),
   editInstance: (inst) => { go('instances'); setTimeout(() => pages.instances.openCreate(inst || undefined), 260); },
   instanceSettings: (inst) => { go('instances'); setTimeout(() => pages.instances.openSettings(inst), 220); },
   addAccount: () => { closePop(); login.open(); },
@@ -306,15 +306,15 @@ on('stars', applyStars);
 
 
 const chip = document.getElementById('running-chip');
-on('running', (id) => {
-  if (id) {
-    const inst = instances.find((i) => i.id === id);
-    chip.querySelector('.rc-name').textContent = inst ? inst.name : id;
+on('running', (ids) => {
+  if (ids && ids.length) {
+    const inst = instances.find((i) => i.id === ids[0]);
+    chip.querySelector('.rc-name').textContent = launcher.count > 1 ? `${launcher.count} games` : inst ? inst.name : ids[0];
     chip.hidden = false;
     requestAnimationFrame(() => chip.classList.add('in'));
   } else {
     chip.classList.remove('in');
-    setTimeout(() => { if (!state.running) chip.hidden = true; }, 300);
+    setTimeout(() => { if (!state.running.length) chip.hidden = true; }, 300);
   }
 });
 chip.addEventListener('click', () => launcher.show());

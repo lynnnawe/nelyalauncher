@@ -4,6 +4,7 @@ import { modIcon } from './sprites.js';
 import { logs } from './logs.js';
 import { state, on } from './state.js';
 import { host } from './host.js';
+import { instances } from './data.js';
 
 function esc(s) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -123,22 +124,23 @@ export function mountConsole(root, app) {
   }
 
   function sync() {
-    const running = !!state.running && app.launcher.phase === 'running';
-    const inst = running ? app.launcher.instance : null;
+    const count = app.launcher.count;
+    const running = count > 0;
+    const inst = running ? instances.find((i) => i.id === state.running[0]) : null;
     root.classList.toggle('live', running);
     root.classList.toggle('dead', !running && !!crashed);
-    statusText.textContent = running ? `${inst.name} running` : crashed ? 'crashed' : 'idle';
+    statusText.textContent = count > 1 ? `${count} games running` : running ? `${inst ? inst.name : 'game'} running` : crashed ? 'crashed' : 'idle';
     if (!running) statusTime.textContent = '';
   }
 
   setInterval(() => {
-    if (!state.running || app.launcher.phase !== 'running') return;
+    if (!app.launcher.count || app.launcher.phase !== 'running') return;
     const s = Math.floor((Date.now() - app.launcher.started) / 1000);
     statusTime.textContent = [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n) => String(n).padStart(2, '0')).join(':');
   }, 1000);
 
-  on('running', (id) => {
-    if (id) hideCrash();
+  on('running', (ids) => {
+    if (ids && ids.length) hideCrash();
     setTimeout(sync, 50);
   });
   on('crash', showCrash);

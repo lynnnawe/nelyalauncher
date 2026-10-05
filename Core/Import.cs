@@ -19,6 +19,7 @@ sealed class Candidate
     public string? LoaderVersion;
     public string? GameDir;
     public string? ModsDir;
+    public string? SettingsDir;
     public string? IconPath;
     public long LastPlayed;
     public long Playtime;
@@ -257,10 +258,47 @@ static class Import
         }
     }
 
+    static readonly string[] SettingsFiles = { "options.txt", "optionsof.txt", "optionsshaders.txt", "servers.dat", "hotbar.nbt", "command_history.txt" };
+    static readonly string[] SettingsDirs = { "config", "resourcepacks", "shaderpacks", "saves", "screenshots", "schematics" };
+
+    static string LunarGameDir()
+    {
+        try
+        {
+            var launcher = Js.Read(Path.Combine(Home, ".lunarclient", "settings", "launcher.json"));
+            if (Js.S(launcher?["settings"]?["gameDirectory"]) is string custom && Directory.Exists(custom)) return custom;
+        }
+        catch
+        {
+        }
+        return Path.Combine(AppData, ".minecraft");
+    }
+
+    static void CopySettings(string from, string game, string key, ref long done, long total)
+    {
+        Directory.CreateDirectory(game);
+        foreach (var name in SettingsFiles)
+        {
+            var file = Path.Combine(from, name);
+            if (!File.Exists(file)) continue;
+            try { File.Copy(file, Path.Combine(game, name), true); } catch { }
+        }
+        foreach (var name in SettingsDirs)
+        {
+            var dir = Path.Combine(from, name);
+            if (Directory.Exists(dir)) CopyTree(dir, Path.Combine(game, name), key, ref done, total, new HashSet<string>(StringComparer.OrdinalIgnoreCase), 1);
+        }
+    }
+
+    static long CountSettings(string from) =>
+        SettingsFiles.Count(f => File.Exists(Path.Combine(from, f))) + SettingsDirs.Sum(d => CountFiles(Path.Combine(from, d), 1));
+
     static IEnumerable<Candidate> Lunar()
     {
         var dir = Path.Combine(Home, ".lunarclient", "profiles");
         if (!Directory.Exists(dir)) yield break;
+        var lunarGame = LunarGameDir();
+        var settings = Directory.Exists(lunarGame) ? lunarGame : null;
         foreach (var prof in Directory.GetDirectories(dir))
         {
             var name = Path.GetFileName(prof);
@@ -279,8 +317,9 @@ static class Import
                     Version = ver,
                     Loader = loader,
                     GameDir = prof,
+                    SettingsDir = settings,
                     LastPlayed = new DateTimeOffset(Directory.GetLastWriteTimeUtc(prof)).ToUnixTimeMilliseconds(),
-                    Note = "lunar's own client is not included, only your mods and files",
+                    Note = "brings your mods, settings, servers, packs and worlds, lunar's own client stays behind",
                 };
                 continue;
             }
@@ -298,8 +337,9 @@ static class Import
                     Version = m.Groups[2].Value,
                     Loader = NormLoader(m.Groups[1].Value),
                     ModsDir = sub,
+                    SettingsDir = settings,
                     LastPlayed = new DateTimeOffset(Directory.GetLastWriteTimeUtc(sub)).ToUnixTimeMilliseconds(),
-                    Note = "only the mods you added, your worlds stay in lunar",
+                    Note = "brings your mods, settings, servers, packs and worlds, lunar's own client stays behind",
                 };
             }
         }
@@ -329,7 +369,7 @@ static class Import
                 ["loader"] = c.Loader,
                 ["loaderVersion"] = c.LoaderVersion,
                 ["mods"] = Count(mods, "*.jar"),
-                ["worlds"] = Worlds(c.GameDir),
+                ["worlds"] = Worlds(c.SettingsDir ?? c.GameDir),
                 ["lastPlayed"] = c.LastPlayed,
                 ["playtime"] = c.Playtime,
                 ["icon"] = IconData(c.IconPath),
@@ -474,6 +514,11 @@ static class Import
                         var mods = Path.Combine(game, "mods");
                         Directory.CreateDirectory(mods);
                         foreach (var jar in Directory.EnumerateFiles(c.ModsDir, "*.jar")) File.Copy(jar, Path.Combine(mods, Path.GetFileName(jar)), true);
+                    }
+                    if (c.SettingsDir != null)
+                    {
+                        done = 0;
+                        CopySettings(c.SettingsDir, game, c.Key, ref done, Math.Max(1, CountSettings(c.SettingsDir)));
                     }
                 });
                 var saved = Instances.Need(id);

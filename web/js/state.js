@@ -30,11 +30,11 @@ export const state = Object.assign(
     arrowPages: true,
     startWithWindows: false,
     splash: true,
-    running: null,
+    running: [],
     page: 'home',
   },
   saved,
-  { running: null, page: 'home' },
+  { running: [], page: 'home' },
 );
 
 const subs = new Map();
@@ -101,3 +101,5 @@ export function togglePin(id) {
   set('pinned', [...pins]);
   return pins.has(id);
 }
+
+export const isRunning = (id) => Array.isArray(state.running) && state.running.includes(id);

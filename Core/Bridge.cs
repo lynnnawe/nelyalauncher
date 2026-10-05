@@ -77,10 +77,9 @@ static class Bridge
                 return true;
             }
             case "game.launch":
-                Launch.Start(Str(a, "id"), a);
-                return true;
+                return Launch.Start(Str(a, "id"), a);
             case "game.kill":
-                Launch.Kill(Str(a, "id"));
+                Launch.Kill(Js.S(a["session"]) is { Length: > 0 } session ? session : Str(a, "id"));
                 return true;
             case "downloads.cancel":
                 Downloads.Cancel(Str(a, "id"));

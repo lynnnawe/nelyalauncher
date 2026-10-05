@@ -60,7 +60,7 @@ export const mods = [
 
 export const accounts = [
   { id: 'alex', name: 'alex', type: 'microsoft', active: true, skin: 'alex' },
-  { id: 'alt', name: 'lyn_alt', type: 'microsoft', active: false, skin: 'wanderer' },
+  { id: 'alt', name: 'alex_alt', type: 'microsoft', active: false, skin: 'wanderer' },
 ];
 
 export const javas = [
