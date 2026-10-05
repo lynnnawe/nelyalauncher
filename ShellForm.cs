@@ -312,6 +312,8 @@ sealed class ShellForm : Form
         view.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type }));
     }
 
+    public void Post(string type, string value) => PostJson(new { type, value });
+
     void PostJson(object payload)
     {
         if (view.CoreWebView2 == null || IsDisposed) return;

@@ -13,6 +13,7 @@ static class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Hub.Init();
+        if (!args.Contains("--updated") && Updater.ApplyLeftover()) return 0;
         Updater.Start(args.Contains("--updated"));
         var launch = Array.IndexOf(args, "--launch") is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         Application.Run(new LauncherContext(launch));
@@ -28,6 +29,8 @@ sealed class LauncherContext : ApplicationContext
     ShellForm? splash;
     ShellForm? main;
     bool useSplash;
+    bool updating;
+    bool mainReady;
 
     public LauncherContext(string? launchId)
     {
@@ -60,6 +63,35 @@ sealed class LauncherContext : ApplicationContext
         splash.Received += OnSplashMessage;
         splash.FormClosed += (_, _) => { if (main == null || !main.Visible) ExitThread(); };
         splash.Show();
+        _ = StartupUpdate();
+    }
+
+    async Task StartupUpdate()
+    {
+        if (!Updater.CanUpdate || !(Js.B(Hub.Settings["autoUpdate"]) ?? true)) return;
+        try
+        {
+            var check = Updater.Check(true);
+            if (await Task.WhenAny(check, Task.Delay(3000)) != check) return;
+            await check;
+            if (!Updater.HasNewer) return;
+            updating = true;
+            splash?.Post("update", Updater.Latest ?? "");
+            var download = Updater.Download();
+            if (await Task.WhenAny(download, Task.Delay(TimeSpan.FromSeconds(90))) != download) throw new TimeoutException();
+            await download;
+            Updater.Restart = true;
+            splash?.Post("update:done", Updater.Latest ?? "");
+            await Task.Delay(700);
+            ExitThread();
+        }
+        catch
+        {
+            if (!updating) return;
+            updating = false;
+            splash?.Post("update:failed", "");
+            if (mainReady && splash != null && !splash.IsDisposed) splash.Post("leave");
+        }
     }
 
     void CreateMain()
@@ -101,6 +133,8 @@ sealed class LauncherContext : ApplicationContext
     void OnMainMessage(ShellForm sender, string type, string? value)
     {
         if (type != "ready") return;
+        mainReady = true;
+        if (updating) return;
         if (useSplash && splash != null && !splash.IsDisposed) splash.Post("leave");
         else if (!useSplash) ShowMain(null);
     }

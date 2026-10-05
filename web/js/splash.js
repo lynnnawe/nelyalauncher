@@ -15,13 +15,12 @@ cube.render();
 cube.start();
 
 const steps = [
-  ['probing java runtimes', 0.12, 300],
-  ['found temurin 21.0.4 at ~/.nelya/runtime', 0.24, 220],
-  ['reading ~/.nelya/instances', 0.4, 260],
-  ['fetching version manifest', 0.57, 300],
-  ['verifying asset index 26', 0.72, 260],
-  ['loading accounts', 0.85, 200],
-  ['warming up', 0.96, 240],
+  ['starting up', 0.14, 260],
+  ['checking for updates', 0.3, 320],
+  ['reading your instances', 0.48, 260],
+  ['loading accounts', 0.66, 240],
+  ['waking up the cat', 0.84, 260],
+  ['warming up', 0.96, 220],
   ['ready', 1, 120],
 ];
 
@@ -30,6 +29,8 @@ let target = 0;
 let bootSent = false;
 let leaveRequested = false;
 let finished = false;
+let updating = false;
+let creep = null;
 
 function type(line) {
   return new Promise((resolve) => {
@@ -64,7 +65,7 @@ function animate() {
 }
 
 function maybeLeave() {
-  if (!finished || !leaveRequested) return;
+  if (!finished || !leaveRequested || updating) return;
   setTimeout(() => {
     root.classList.add('leaving');
     setTimeout(() => {
@@ -74,6 +75,27 @@ function maybeLeave() {
     }, 480);
   }, 220);
 }
+
+host.on('update', (m) => {
+  updating = true;
+  type(`updating nelya to ${m.value}...`);
+  target = Math.max(0.2, Math.min(target, 0.6));
+  clearInterval(creep);
+  creep = setInterval(() => { target = Math.min(0.94, target + (0.94 - target) * 0.06); }, 200);
+});
+
+host.on('update:done', (m) => {
+  clearInterval(creep);
+  type(`restarting into ${m.value}`);
+  target = 1;
+});
+
+host.on('update:failed', () => {
+  clearInterval(creep);
+  updating = false;
+  type('update can wait, starting nelya...');
+  target = 1;
+});
 
 host.on('leave', () => {
   leaveRequested = true;
@@ -86,7 +108,9 @@ async function run() {
   await new Promise((r) => setTimeout(r, 450));
   requestAnimationFrame(animate);
   for (const [line, to, wait] of steps) {
+    if (updating) return;
     await type(line);
+    if (updating) return;
     target = to;
     await new Promise((r) => setTimeout(r, wait));
   }

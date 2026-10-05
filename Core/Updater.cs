@@ -25,6 +25,42 @@ public static class Updater
 
     public static bool Restart;
     public static bool JustUpdated;
+    public static bool CanUpdate => Exe != null;
+    public static bool HasNewer => Newer && assetUrl != null;
+    public static string? Latest => latest;
+
+    static string Marker => Path.Combine(Paths.Cache, "update", "pending.json");
+
+    static string Sha256(string file)
+    {
+        using var stream = File.OpenRead(file);
+        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
+
+    public static bool ApplyLeftover()
+    {
+        if (Exe == null || !File.Exists(Marker)) return false;
+        try
+        {
+            var saved = Js.Read(Marker) as JsonObject;
+            var version = Js.S(saved?["version"]);
+            var file = Js.S(saved?["file"]);
+            var sha = Js.S(saved?["sha256"]);
+            if (version == null || file == null || !File.Exists(file) || Parse(version) <= Parse(Hub.Version) || (sha != null && Sha256(file) != sha))
+            {
+                File.Delete(Marker);
+                return false;
+            }
+            pending = file;
+            Restart = true;
+            ApplyPending();
+            return pending == null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     static string? Exe
     {
@@ -171,6 +207,7 @@ public static class Updater
             }
             pending = file;
             error = null;
+            try { File.WriteAllText(Marker, new JsonObject { ["version"] = latest, ["file"] = file, ["sha256"] = Sha256(file) }.ToJsonString()); } catch { }
             Hub.Log($"nelya {latest} downloaded, it installs when nelya closes");
             Hub.Emit("update.ready", State());
             return State();
@@ -198,6 +235,7 @@ public static class Updater
             File.Move(exe, old);
             File.Move(pending, exe);
             pending = null;
+            try { File.Delete(Marker); } catch { }
         }
         catch (Exception ex)
         {
